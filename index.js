@@ -35,7 +35,6 @@ app.get("/api/data", async (req, res) => {
     const response = await db.any(queryText);
     res.type("application/json");
     res.send(JSON.stringify(response));
-    console.log(response);
   } catch (err) {
     console.log(err);
   }
