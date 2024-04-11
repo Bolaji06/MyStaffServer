@@ -2,6 +2,9 @@ require("dotenv").config();
 const pgp = require("pg-promise")();
 const express = require("express");
 
+const path = require('node:path');
+const fs = require('node:fs');
+
 const app = express();
 
 const {
@@ -19,15 +22,26 @@ const configOption = {
   database: POSTGRES_DATABASE,
   user: 'bjpostgres',
   password: POSTGRES_PASSWORD,
-  // max: Number(POOL_COUNT),
+  max: Number(POOL_COUNT),
   ssl: true,
 };
 
 const db = pgp(configOption);
 
-app.get("/", (req, res) => {
-  res.send("<h1>HomePage</h1>");
-});
+const message = [{
+  status: 404,
+  message: "Can\'nt retrieve data"
+}]
+
+app.get("/", (req, res) => { 
+  fs.readFile(path.join(__dirname, 'index.html'), 'utf-8', (err, data) => {
+    if (err) throw err;
+    res.type('.html');
+    res.send(data)
+  })
+  
+})
+ 
 
 app.get("/api/data", async (req, res) => {
   const queryText = "SELECT * FROM mystaff";
@@ -38,9 +52,15 @@ app.get("/api/data", async (req, res) => {
     res.type("application/json");
     res.send(JSON.stringify(response));
   } catch (err) {
-    console.log(err);
+    res.status(500).json({ error: 'Internal Server error'});
+    throw new Error(err);
+
   }
 });
+
+app.use((req, res, next) => {
+  res.status(404).json(message);
+})
 
 app.listen(8000, () => {
   console.log("Server running...");
