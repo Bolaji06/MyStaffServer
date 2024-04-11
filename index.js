@@ -33,6 +33,8 @@ app.get("/api/data", async (req, res) => {
   const queryText = "SELECT * FROM mystaff";
   try {
     const response = await db.any(queryText);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
     res.type("application/json");
     res.send(JSON.stringify(response));
   } catch (err) {
