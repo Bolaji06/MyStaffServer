@@ -30,7 +30,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/data", async (req, res) => {
-  const queryText = "SELECT * FROM mystaff LIMIT 10";
+  const queryText = "SELECT * FROM mystaff";
   try {
     const response = await db.any(queryText);
     res.type("application/json");
