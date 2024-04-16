@@ -74,7 +74,7 @@ app.get("/api/data", async (req, res) => {
   try {
     const response = await db.any(queryText);    
 
-    if (gender && gender !== 'male' | 'female'){
+    if (gender && (gender !== 'male' && gender !== 'female')){
       return res.sendStatus(404);
     }
     if (gender){
