@@ -61,6 +61,33 @@ app.get("/", (req, res) => {
 
 // }
 
+app.get("/api/data", async (req, res) => {
+  const queryText = "SELECT * FROM mystaff";
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Cache-Control', 'max-age=3600')
+  res.type("application/json");
+
+  const { gender } = req.query;
+
+  try {
+    const response = await db.any(queryText);    
+
+    if (gender && gender !== 'male' | 'female'){
+      return res.sendStatus(404);
+    }
+    if (gender){
+      const filter = response.filter((item) => item.gender === gender);
+      return res.send(filter)
+    }
+    return res.send(JSON.stringify(response));
+  } catch (err) {
+    res.status(500).json({ error: 'Internal Server error'});
+    throw new Error(err);
+  }
+});
+
 app.get('/api/data/:id', async (req, res) => {
   const queryText = 'SELECT * FROM mystaff WHERE id=$1';
 
@@ -70,8 +97,8 @@ app.get('/api/data/:id', async (req, res) => {
 
   res.type('application/json');
 
-  const parseId = parseInt(req.params.id);
-  console.log(parseId);
+  const { id } = req.params;
+  const parseId = parseInt(id);
 
   if (isNaN(parseId)){
     return res.status(400).json({error: 'Invalid Request'});
@@ -88,24 +115,6 @@ app.get('/api/data/:id', async (req, res) => {
     res.sendStatus(500);
     throw new Error(err);
   }
-
-})
-
-app.get("/api/data", async (req, res) => {
-  const queryText = "SELECT * FROM mystaff";
-  try {
-    const response = await db.any(queryText);
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Cache-Control', 'max-age=3600')
-    res.type("application/json");
-    
-    res.send(JSON.stringify(response));
-  } catch (err) {
-    res.status(500).json({ error: 'Internal Server error'});
-    throw new Error(err);
-  }
 });
 
 app.use((req, res, next) => {
@@ -113,5 +122,5 @@ app.use((req, res, next) => {
 })
 
 app.listen(PORT, () => {
-  console.log("Server running...");
+  console.log("Server running..." + PORT);
 });
