@@ -32,10 +32,22 @@ const db = pgp(configOption);
 
 const message = [
   {
-    status: 404,
+    status: 400,
     message: "Can'nt retrieve data",
   },
 ];
+
+// using express middleware to validate ID
+function checkParsedId(req, res, next) {
+  const { id } = req.params;
+  const parsedId = parseInt(id);
+
+  if (isNaN(parsedId)) {
+    res.status(400).json({ error: "Bad Request" });
+  }
+  req.parsedId = parsedId;
+  next();
+}
 
 app.use(express.json());
 
@@ -103,10 +115,19 @@ app.post("/api/data", async (req, res) => {
     description,
   } = req.body;
 
-  const requiredField = [first_name, last_name, image_url, gender, email, date_hire, department, description];
+  const requiredField = [
+    first_name,
+    last_name,
+    image_url,
+    gender,
+    email,
+    date_hire,
+    department,
+    description,
+  ];
 
-  if (requiredField.some(field => !field)){
-    res.status(400).json({ error: "All fields are required "})
+  if (requiredField.some((field) => !field)) {
+    res.status(400).json({ error: "All fields are required " });
   }
 
   const queryText = `INSERT INTO mystaff
@@ -126,30 +147,25 @@ app.post("/api/data", async (req, res) => {
     ]);
     res.status(201).json(result);
   } catch (err) {
-    res.status(500).json({error: "Internal Server error"});
+    res.status(500).json({ error: "Internal Server error" });
     throw new Error(err);
   }
 });
 
-app.get("/api/data/:id", async (req, res) => {
+// Retrive a staff member data using staff unique id
+app.get("/api/data/:id", checkParsedId, async (req, res) => {
   const queryText = "SELECT * FROM mystaff WHERE id=$1";
 
+  const { parsedId } = req;
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
   res.setHeader("Cache-Control", "no-cache");
 
   res.type("application/json");
 
-  const { id } = req.params;
-  const parseId = parseInt(id);
-
-  if (isNaN(parseId)) {
-    return res.status(400).json({ error: "Invalid Request" });
-  }
-
   try {
-    const response = await db.any(queryText, [parseId]);
-    const findStaff = response.find((staff) => staff.id === parseId);
+    const response = await db.any(queryText, [parsedId]);
+    const findStaff = response.find((staff) => staff.id === parsedId);
     if (!findStaff) return res.sendStatus(404);
 
     return res.send(findStaff);
@@ -159,78 +175,80 @@ app.get("/api/data/:id", async (req, res) => {
   }
 });
 
-app.put('/api/data/:id', async (req, res) => {
+app.put("/api/data/:id", checkParsedId, async (req, res) => {
   const queryText = `UPDATE mystaff SET 
   first_name=$1, last_name=$2, image_url=$3, gender=$4, email=$5,
   date_hire=$6, department=$7, description=$8 WHERE id=$9 RETURNING *`;
 
-  const { body, params: { id } } = req;
+  const { body, parsedId } = req;
 
-  const parseId = parseInt(id);
-  if (isNaN(parseId)){
-    res.status(500).json({ error: 'Invalid request' });
-  }
-  const { first_name, last_name, image_url, gender,
-     email, date_hire, department, description } = body;
-  
+  const {
+    first_name,
+    last_name,
+    image_url,
+    gender,
+    email,
+    date_hire,
+    department,
+    description,
+  } = body;
+
   try {
-    const updateRecord = await db.oneOrNone(queryText, [first_name, last_name, image_url, gender, 
-      email, date_hire, department, description, parseId]);
+    const updateRecord = await db.oneOrNone(queryText, [
+      first_name,
+      last_name,
+      image_url,
+      gender,
+      email,
+      date_hire,
+      department,
+      description,
+      parsedId,
+    ]);
 
-      if (!updateRecord){
-        res.status(500).json({ error: 'Record not found' });
-      }
+    if (!updateRecord) {
+      res.status(404).json({ error: "Record not found" });
+    }
 
-     return res.status(201).json(updateRecord);
-  }catch(err){
+    return res.status(201).json(updateRecord);
+  } catch (err) {
     res.sendStatus(500);
     throw new Error(err);
   }
-
 });
 
-app.patch('/api/data/:id', async (req, res) => {
-  const { params: { id }, body } = req
+app.patch("/api/data/:id", checkParsedId, async (req, res) => {
+  const { parsedId, body } = req;
   const { email } = body;
 
-  const parseId = parseInt(id)
-  if (isNaN(parseId)){
-    res.status(500).json({error: "Bad Request"});
-  }
-  const queryText = 'UPDATE mystaff SET email=$1 WHERE id=$2 RETURNING *';
+  const queryText = "UPDATE mystaff SET email=$1 WHERE id=$2 RETURNING *";
 
-  try{
-     const result = await db.oneOrNone(queryText, [email, parseId]);
-      if (!result){
-        res.sendStatus(400);
-      }
-      return res.status(201).json(result);
-    }catch(err){
-      throw new Error(err)
-    }
-});
-
-app.delete('/api/data/:id', async(req, res) => {
-  const { params: { id } } = req;
-  const parseId = parseInt(id);
-
-  if (isNaN(parseId)){
-    res.status(400).json({error: "Bad Request"});
-  }
-  const queryText = 'DELETE FROM mystaff WHERE id=$1 RETURNING *';
   try {
-    const result = await db.oneOrNone(queryText, [parseId]);
-    if (!result){
-      res.status(404).json({ error: 'No Record Found'});
+    const result = await db.oneOrNone(queryText, [email, parsedId]);
+    if (!result) {
+      res.sendStatus(404);
     }
-    return res.status(204).json(result)
-  }catch(err){
-    res.status(500).json({error: 'Internal Server Error'})
+    return res.status(201).json(result);
+  } catch (err) {
     throw new Error(err);
   }
-})
+});
 
+app.delete("/api/data/:id", checkParsedId, async (req, res) => {
+  const { parsedId } = req;
 
+  const queryText = "DELETE FROM mystaff WHERE id=$1 RETURNING *";
+  try {
+    const result = await db.oneOrNone(queryText, [parsedId]);
+    if (!result) {
+      res.status(404).json({ error: "No Record Found" });
+    }
+    return res.status(204).json({ status: "Staff deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+    throw new Error(err);
+  }
+});
 
 app.use((req, res, next) => {
   res.status(404).json(message);
